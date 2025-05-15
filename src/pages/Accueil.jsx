@@ -14,14 +14,100 @@ const Home = () => {
   const [guestCount, setGuestCount] = useState(2);
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(null); // To display success or error message
+  const [formErrors, setFormErrors] = useState({});
 
-  const handleReservation = (e) => {
+  // Function to validate the form
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!name.trim()) errors.name = "Le nom est requis";
+    if (!email.trim()) errors.email = "L'email est requis";
+    else if (!/\S+@\S+\.\S+/.test(email)) errors.email = "Format d'email invalide";
+    if (!phone.trim()) errors.phone = "Le téléphone est requis";
+    if (!date) errors.date = "La date est requise";
+    if (!time) errors.time = "L'heure est requise";
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleReservation = async (e) => {
     e.preventDefault();
-    alert(`Réservation pour ${guestCount} personnes le ${date} à ${time}`);
+    
+    // First validate the form
+    if (!validateForm()) {
+      setMessage({ type: 'danger', text: 'Veuillez remplir tous les champs correctement.' });
+      return;
+    }
+    
+    // Format the date properly for the API
+    const formattedDate = date; // Keep as is since it's already in YYYY-MM-DD format from the date input
+    
+    const reservationData = {
+      guests: parseInt(guestCount),
+      name,
+      email,
+      phone,
+      date: formattedDate,
+      time,
+    };
+    
+    setLoading(true);
+    setMessage(null);
+    
+    try {
+      const response = await fetch('/api/reservations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(reservationData),
+      });
+      
+      if (!response.ok) {
+        try {
+          const errorData = await response.json();
+          if (errorData.message) {
+            throw new Error(errorData.message);
+          }
+        } catch (parseError) {
+          // fallback if response body is not JSON or is empty
+          console.error('Failed to parse error JSON:', parseError);
+          throw new Error('Erreur lors de la réservation. Réponse serveur non attendue.');
+        }
+      }
+      
+      let data = {};
+      
+      
+      // Clear form fields on success
+      setGuestCount(2);
+      setDate('');
+      setTime('');
+      setName('');
+      setMessage({ type: 'success', text: 'Réservation effectuée avec succès!' });
+      setEmail('');
+      setPhone('');
+      setFormErrors({});
+      
+    } catch (error) {
+      console.error('Error making reservation:', error);
+      setMessage({ 
+        type: 'danger', 
+        text: error.message || 'Une erreur est survenue. Veuillez réessayer.' 
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className=" bg-opacity-10 d-flex flex-column min-vh-100">
+    <div className="bg-opacity-10 d-flex flex-column min-vh-100">
       {/* Hero Section */}
       <div className="position-relative mb-5">
         <img 
@@ -46,7 +132,6 @@ const Home = () => {
           </Link>
         </div>
       </div>
-
       {/* Main Content */}
       <div className="container py-5">
         {/* Intro Section */}
@@ -61,7 +146,6 @@ const Home = () => {
             Voyagez au cœur des saveurs authentiques de l'Himalaya avec Sagarmatha, premier restaurant népalais de Paris. Notre carte vous invite à explorer une riche diversité culinaire, mêlant les traditions du Népal, du Tibet et de l'Inde du Nord, le tout préparé "comme à la maison".
           </p>
         </section>
-
         {/* Temple Section */}
         <section className="row align-items-center mb-5 py-4">
           <div className="col-md-6 mb-4 mb-md-0 pe-md-5">
@@ -88,7 +172,6 @@ const Home = () => {
             />
           </div>
         </section>
-
         {/* Menu Preview */}
         <section className="mb-5 py-4">
           <h2 className="h3 fw-bold mb-4 text-center" style={{ color: 'var(--accent-color)' }}>Nos Spécialités</h2>
@@ -155,13 +238,49 @@ const Home = () => {
             </Link>
           </div>
         </section>
-
         {/* Reservation */}
         <section className="bg-opacity-25 p-5 rounded shadow mt-5" style={{ backgroundColor: 'var(--border-color)' }}>
           <h2 className="h3 fw-bold text-center mb-4">Réservez une table</h2>
+          {/* Reservation Message */}
+          {message && (
+            <div className={`alert alert-${message.type} text-center`} role="alert">{message.text}</div>
+          )}
           <form onSubmit={handleReservation} className="px-md-5">
             <div className="row g-4">
-              <div className="col-md-4">
+              <div className="col-md-6">
+                <label className="form-label fw-bold text-dark">Nom</label>
+                <input 
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className={`form-control ${formErrors.name ? 'is-invalid' : ''}`}
+                  required
+                />
+                {formErrors.name && <div className="invalid-feedback">{formErrors.name}</div>}
+              </div>
+              <div className="col-md-6">
+                <label className="form-label fw-bold text-dark">Email</label>
+                <input 
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={`form-control ${formErrors.email ? 'is-invalid' : ''}`}
+                  required
+                />
+                {formErrors.email && <div className="invalid-feedback">{formErrors.email}</div>}
+              </div>
+              <div className="col-md-6">
+                <label className="form-label fw-bold text-dark">Téléphone</label>
+                <input 
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className={`form-control ${formErrors.phone ? 'is-invalid' : ''}`}
+                  required
+                />
+                {formErrors.phone && <div className="invalid-feedback">{formErrors.phone}</div>}
+              </div>
+              <div className="col-md-6">
                 <label className="form-label fw-bold text-dark">Nombre de convives</label>
                 <select 
                   value={guestCount}
@@ -173,27 +292,43 @@ const Home = () => {
                   ))}
                 </select>
               </div>
-              <div className="col-md-4">
+              <div className="col-md-6">
                 <label className="form-label fw-bold text-dark">Date</label>
                 <input 
                   type="date"
                   value={date}
                   onChange={(e) => setDate(e.target.value)}
-                  className="form-control"
+                  className={`form-control ${formErrors.date ? 'is-invalid' : ''}`}
+                  required
                 />
+                {formErrors.date && <div className="invalid-feedback">{formErrors.date}</div>}
               </div>
-              <div className="col-md-4">
+              <div className="col-md-6">
                 <label className="form-label fw-bold text-dark">Heure</label>
                 <input 
                   type="time"
                   value={time}
                   onChange={(e) => setTime(e.target.value)}
-                  className="form-control"
+                  className={`form-control ${formErrors.time ? 'is-invalid' : ''}`}
+                  required
                 />
+                {formErrors.time && <div className="invalid-feedback">{formErrors.time}</div>}
               </div>
               <div className="col-12 text-center mt-4">
-                <button type="submit" className="btn btn-dark text-white fw-bold px-5 py-2" style={{ backgroundColor: 'var(--accent-color)', borderColor: 'var(--accent-color)' }}>
-                  Réserver
+                <button 
+                  type="submit" 
+                  className="btn btn-dark text-white fw-bold px-5 py-2" 
+                  style={{ backgroundColor: 'var(--accent-color)', borderColor: 'var(--accent-color)' }} 
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      Traitement en cours...
+                    </>
+                  ) : (
+                    'Réserver'
+                  )}
                 </button>
               </div>
             </div>

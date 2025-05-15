@@ -10,6 +10,7 @@ import MenuPlats from './pages/MenuPlats';
 import MenuDessert from './pages/MenuDessert';
 import MenuBoisson from './pages/MenuBoisson';
 import MenuFormulaire from './pages/MenuFormulaire';
+import AdminPanel from './pages/Admin';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import { CartProvider } from './context/CartContext'; 
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -30,6 +31,7 @@ function App() {
           <Route path="/menudessert" element={<MenuDessert />} />
           <Route path="/menuboisson" element={<MenuBoisson />} />
           <Route path="/menuformulaire" element={<MenuFormulaire />} />
+          <Route path="/admin" element={<AdminPanel />} />
         </Routes>
         <Footer />
       </Router>

@@ -1,10 +1,39 @@
 import React from 'react';
 import { Container, Row, Col, Card, Button, ListGroup } from 'react-bootstrap';
+import { useState } from 'react';
 import '../index.css'; // Import your CSS file
 import { useCart } from '../context/CartContext'; // Import useCart
 
 const Commande = () => {
-  const { cartItems, removeFromCart, getCartTotal } = useCart(); // Use CartContext functions
+  const [message, setMessage] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const { cartItems, removeFromCart, getCartTotal, clearCart } = useCart(); // Use CartContext functions
+
+  const handlePlaceOrder = async () => {
+    setLoading(true); // Set loading to true when the request starts
+    setMessage(null); // Clear previous messages
+
+    try {
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_items: cartItems, total_amount: getCartTotal() }),
+      });
+
+      if (response.ok) {
+        setMessage('Commande passée avec succès!');
+        clearCart(); // Clear the cart after successful order
+      } else {
+        const errorData = await response.json();
+        setMessage(errorData.message || 'Erreur lors du passage de la commande.');
+      }
+    } catch (error) {
+      console.error('Error placing order:', error);
+      setMessage('Erreur lors du passage de la commande.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="d-flex flex-column min-vh-100">
@@ -12,7 +41,6 @@ const Commande = () => {
       <div className="commande-container flex-grow-1">
         <Container>
           <h1 className="page-title mb-5">Votre Commande</h1>
-
           {cartItems.length === 0 ? (
             <Row className="justify-content-center">
               <Col md={8}>
@@ -58,7 +86,6 @@ const Commande = () => {
                   </Card.Body>
                 </Card>
               </Col>
-
               {/* Order Summary */}
               <Col md={4}>
                 <Card className="shadow-sm">
@@ -70,9 +97,15 @@ const Commande = () => {
                         <strong>{getCartTotal().toFixed(2)} €</strong>
                       </ListGroup.Item>
                     </ListGroup>
+                    {/* Message alert */}
+                    {message && (
+                      <div className={`mt-3 alert ${message.includes('succès') ? 'alert-success' : 'alert-danger'}`} role="alert">
+                        {message}
+                      </div>
+                    )}
                     <div className="d-grid mt-4">
-                      <Button variant="dark" size="lg" className="rounded-1">
-                        Passer la commande
+                      <Button variant="dark" size="lg" className="rounded-1" onClick={handlePlaceOrder} disabled={loading}>
+                        {loading ? 'Passage de la commande...' : 'Passer la commande'}
                       </Button>
                     </div>
                   </Card.Body>
