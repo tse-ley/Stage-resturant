@@ -1,10 +1,12 @@
-import { Router, body, validationResult } from 'express';
+import pkg from 'express';
+const { Router } = pkg;
+import { body, validationResult } from 'express-validator';
 import pool from '../config/database.js';
  
 const router = Router();
 
 // POST route to create a new order
-router.post('/orders', [
+router.post('/', [
   body('order_items').isArray().withMessage('order_items must be an array'),
   body('total_amount').isNumeric().withMessage('total_amount must be a number'),
 ], async (req, res) => {
@@ -36,7 +38,7 @@ router.post('/orders', [
 });
 
 // GET route to fetch all orders
-router.get('/orders', async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const query = 'SELECT * FROM orders ORDER BY created_at DESC';
     const [rows] = await pool.query(query);

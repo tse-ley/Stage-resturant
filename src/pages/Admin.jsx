@@ -17,7 +17,7 @@ const AdminPanel = () => {
 
   useEffect(() => {
     // Fetch Reservations
-    fetch('/api/reservations')
+    fetch('/api/reservation')
       .then(response => {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status} for reservations`);
@@ -28,11 +28,11 @@ const AdminPanel = () => {
         setReservations(data);
       })
       .catch(error => {
-        setErrorReservations(error);
+        setErrorReservations(new Error(handleApiError(error)));
       });
 
     // Fetch Orders
-    fetch('/api/orders')
+    fetch('/api/order')
       .then(response => {
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status} for orders`);
@@ -43,7 +43,7 @@ const AdminPanel = () => {
         setOrders(data);
       })
       .catch(error => {
-        setErrorOrders(error);
+        setErrorOrders(new Error(handleApiError(error)));
       })
       .finally(() => {
         setLoading(false); // Set loading to false after both fetches are complete

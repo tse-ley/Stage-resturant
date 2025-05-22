@@ -1,5 +1,5 @@
 import express from 'express';
-import reservationRoutes from './routes/reservationRoutes.js';
+import reservationRoutes from './routes/reservationRoute.js';
 import orderRoutes from './routes/orderRoutes.js';
 import authRoutes, { authenticateToken } from './routes/authRoutes.js';
 
@@ -14,8 +14,8 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api', authRoutes); // Use auth routes under /api
-app.use('/api/reservations', authenticateToken, reservationRoutes); // Protect reservation routes
-app.use('/api/orders', authenticateToken, orderRoutes); // Protect order routes
+app.use('/api/orders', orderRoutes);
+app.use('/api/reservations', reservationRoutes);
 
 app.listen(port, () => {
   console.log(`Server listening at http://localhost:${port}`);

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import axios from 'axios';
 import heroImage from '../assets/cuisine/hero.JPG';
 import momoImage from '../assets/cuisine/momo.jpeg'; 
 import thaliImage from '../assets/cuisine/thali1.jpeg'; 
@@ -8,101 +9,128 @@ import spiceImage from '../assets/cuisine/momo2.jpeg';
 import foodImage from '../assets/cuisine/dish2.jpeg';
 import dishImage from '../assets/cuisine/dish1.jpeg';
 import dessertImage from '../assets/cuisine/dessert.jpeg';
-import '../index.css'; // Import your CSS file
+import '../index.css';
+
+import { Modal, Button, Form } from 'react-bootstrap';
 
 const Home = () => {
-  const [guestCount, setGuestCount] = useState(2);
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('');
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState(null); // To display success or error message
-  const [formErrors, setFormErrors] = useState({});
+  const [showReservationModal, setShowReservationModal] = useState(false);
+  const [reservationSubmitting, setReservationSubmitting] = useState(false);
+  const [reservationSuccess, setReservationSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  // Function to validate the form
-  const validateForm = () => {
-    const errors = {};
-    
-    if (!name.trim()) errors.name = "Le nom est requis";
-    if (!email.trim()) errors.email = "L'email est requis";
-    else if (!/\S+@\S+\.\S+/.test(email)) errors.email = "Format d'email invalide";
-    if (!phone.trim()) errors.phone = "Le téléphone est requis";
-    if (!date) errors.date = "La date est requise";
-    if (!time) errors.time = "L'heure est requise";
-    
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
+  const [mainFormData, setMainFormData] = useState({
+    partySize: 2,
+    reservationTime: '',
+  });
+
+  const [modalFormData, setModalFormData] = useState({
+    customerName: '',
+    customerEmail: ''
+  });
+
+  // Validate date and time
+  const validateDateTime = (dateTimeStr) => {
+    const selectedDate = new Date(dateTimeStr);
+    const now = new Date();
+
+    // Check if date is in the past
+    if (selectedDate < now) {
+      return "La date de réservation ne peut pas être dans le passé";
+    }
+
+    // Check if restaurant is open (assuming 11:00 to 22:00)
+    const hours = selectedDate.getHours();
+    if (hours < 11 || hours >= 22) {
+      return "Les réservations sont possibles entre 11h00 et 22h00";
+    }
+
+    return null;
   };
 
-  const handleReservation = async (e) => {
+  const handleMainFormChange = (e) => {
+    const { name, value } = e.target;
+    setMainFormData({ ...mainFormData, [name]: value });
+    setErrorMessage(''); // Clear any previous error messages
+  };
+
+  const handleModalInputChange = (e) => {
+    const { name, value } = e.target;
+    setModalFormData({ ...modalFormData, [name]: value });
+  };
+
+  const handleReservationClick = (e) => {
     e.preventDefault();
     
-    // First validate the form
-    if (!validateForm()) {
-      setMessage({ type: 'danger', text: 'Veuillez remplir tous les champs correctement.' });
+    // Validate the main form
+    if (!mainFormData.partySize || !mainFormData.reservationTime) {
+      setErrorMessage('Veuillez remplir tous les champs requis');
       return;
     }
-    
-    // Format the date properly for the API
-    const formattedDate = date; // Keep as is since it's already in YYYY-MM-DD format from the date input
-    
-    const reservationData = {
-      guests: parseInt(guestCount),
-      name,
-      email,
-      phone,
-      date: formattedDate,
-      time,
-    };
-    
-    setLoading(true);
-    setMessage(null);
-    
+
+    // Validate date and time
+    const dateTimeError = validateDateTime(mainFormData.reservationTime);
+    if (dateTimeError) {
+      setErrorMessage(dateTimeError);
+      return;
+    }
+
+    setErrorMessage('');
+    setShowReservationModal(true);
+  };
+
+  const handleSubmitReservation = async (e) => {
+    e.preventDefault();
+    setReservationSubmitting(true);
+    setErrorMessage('');
+
     try {
-      const response = await fetch('/api/reservations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(reservationData),
-      });
+      const reservationDateTime = new Date(mainFormData.reservationTime);
       
-      if (!response.ok) {
-        try {
-          const errorData = await response.json();
-          if (errorData.message) {
-            throw new Error(errorData.message);
-          }
-        } catch (parseError) {
-          // fallback if response body is not JSON or is empty
-          console.error('Failed to parse error JSON:', parseError);
-          throw new Error('Erreur lors de la réservation. Réponse serveur non attendue.');
-        }
+      // Format time as HH:mm:ss
+      const formattedTime = reservationDateTime.toTimeString().split(' ')[0];
+      // Format date as YYYY-MM-DD
+      const formattedDate = reservationDateTime.toISOString().split('T')[0];
+
+      const reservationData = {
+        name: modalFormData.customerName,
+        email: modalFormData.customerEmail,
+        guests: parseInt(mainFormData.partySize),
+        date: formattedDate,
+        time: formattedTime,
+        status: 'pending'
+      };
+
+      const response = await axios.post('http://localhost:3000/api/reservations', reservationData);
+
+      if (response.status === 201) {
+        setReservationSubmitting(false);
+        setReservationSuccess(true);
+      } else {
+        throw new Error('Failed to create reservation');
       }
-      
-      let data = {};
-      
-      
-      // Clear form fields on success
-      setGuestCount(2);
-      setDate('');
-      setTime('');
-      setName('');
-      setMessage({ type: 'success', text: 'Réservation effectuée avec succès!' });
-      setEmail('');
-      setPhone('');
-      setFormErrors({});
-      
     } catch (error) {
-      console.error('Error making reservation:', error);
-      setMessage({ 
-        type: 'danger', 
-        text: error.message || 'Une erreur est survenue. Veuillez réessayer.' 
+      console.error('Error submitting reservation:', error);
+      setReservationSubmitting(false);
+      setErrorMessage(
+        error.response?.data?.message || 
+        "Une erreur s'est produite lors de la réservation. Veuillez réessayer."
+      );
+    }
+  };
+
+  const handleCloseModal = () => {
+    setShowReservationModal(false);
+    if (reservationSuccess) {
+      setReservationSuccess(false);
+      setMainFormData({
+        partySize: 2,
+        reservationTime: ''
       });
-    } finally {
-      setLoading(false);
+      setModalFormData({
+        customerName: '',
+        customerEmail: ''
+      });
     }
   };
 
@@ -132,6 +160,7 @@ const Home = () => {
           </Link>
         </div>
       </div>
+
       {/* Main Content */}
       <div className="container py-5">
         {/* Intro Section */}
@@ -143,9 +172,10 @@ const Home = () => {
             Bienvenue dans notre cuisine de l'Himalaya – fait maison, fait avec cœur.
           </p>
           <p className="mb-3" style={{ color: 'var(--text-color)', maxWidth: '900px', margin: '0 auto' }}>
-            Voyagez au cœur des saveurs authentiques de l'Himalaya avec Sagarmatha, premier restaurant népalais de Paris. Notre carte vous invite à explorer une riche diversité culinaire, mêlant les traditions du Népal, du Tibet et de l'Inde du Nord, le tout préparé "comme à la maison".
+            Voyagez au cœur des saveurs authentiques de l'Himalaya avec Sagarmatha, premier restaurant népalais de Paris. Notre carte vous invite à explore une riche diversité culinaire, mêlant les traditions du Népal, du Tibet et de l'Inde du Nord, le tout préparé "comme à la maison".
           </p>
         </section>
+
         {/* Temple Section */}
         <section className="row align-items-center mb-5 py-4">
           <div className="col-md-6 mb-4 mb-md-0 pe-md-5">
@@ -172,6 +202,7 @@ const Home = () => {
             />
           </div>
         </section>
+
         {/* Menu Preview */}
         <section className="mb-5 py-4">
           <h2 className="h3 fw-bold mb-4 text-center" style={{ color: 'var(--accent-color)' }}>Nos Spécialités</h2>
@@ -238,103 +269,116 @@ const Home = () => {
             </Link>
           </div>
         </section>
-        {/* Reservation */}
+
+        {/* Reservation Section */}
         <section className="bg-opacity-25 p-5 rounded shadow mt-5" style={{ backgroundColor: 'var(--border-color)' }}>
           <h2 className="h3 fw-bold text-center mb-4">Réservez une table</h2>
-          {/* Reservation Message */}
-          {message && (
-            <div className={`alert alert-${message.type} text-center`} role="alert">{message.text}</div>
-          )}
-          <form onSubmit={handleReservation} className="px-md-5">
-            <div className="row g-4">
-              <div className="col-md-6">
-                <label className="form-label fw-bold text-dark">Nom</label>
-                <input 
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className={`form-control ${formErrors.name ? 'is-invalid' : ''}`}
-                  required
-                />
-                {formErrors.name && <div className="invalid-feedback">{formErrors.name}</div>}
-              </div>
-              <div className="col-md-6">
-                <label className="form-label fw-bold text-dark">Email</label>
-                <input 
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className={`form-control ${formErrors.email ? 'is-invalid' : ''}`}
-                  required
-                />
-                {formErrors.email && <div className="invalid-feedback">{formErrors.email}</div>}
-              </div>
-              <div className="col-md-6">
-                <label className="form-label fw-bold text-dark">Téléphone</label>
-                <input 
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className={`form-control ${formErrors.phone ? 'is-invalid' : ''}`}
-                  required
-                />
-                {formErrors.phone && <div className="invalid-feedback">{formErrors.phone}</div>}
-              </div>
-              <div className="col-md-6">
-                <label className="form-label fw-bold text-dark">Nombre de convives</label>
-                <select 
-                  value={guestCount}
-                  onChange={(e) => setGuestCount(e.target.value)}
-                  className="form-select"
-                >
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map(num => (
-                    <option key={num} value={num}>{num}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="col-md-6">
-                <label className="form-label fw-bold text-dark">Date</label>
-                <input 
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  className={`form-control ${formErrors.date ? 'is-invalid' : ''}`}
-                  required
-                />
-                {formErrors.date && <div className="invalid-feedback">{formErrors.date}</div>}
-              </div>
-              <div className="col-md-6">
-                <label className="form-label fw-bold text-dark">Heure</label>
-                <input 
-                  type="time"
-                  value={time}
-                  onChange={(e) => setTime(e.target.value)}
-                  className={`form-control ${formErrors.time ? 'is-invalid' : ''}`}
-                  required
-                />
-                {formErrors.time && <div className="invalid-feedback">{formErrors.time}</div>}
-              </div>
-              <div className="col-12 text-center mt-4">
-                <button 
-                  type="submit" 
-                  className="btn btn-dark text-white fw-bold px-5 py-2" 
-                  style={{ backgroundColor: 'var(--accent-color)', borderColor: 'var(--accent-color)' }} 
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                      Traitement en cours...
-                    </>
-                  ) : (
-                    'Réserver'
-                  )}
-                </button>
-              </div>
+          {errorMessage && (
+            <div className="alert alert-danger text-center mb-4">
+              {errorMessage}
             </div>
-          </form>
+          )}
+          <Form onSubmit={handleReservationClick} className="row g-3 justify-content-center">
+            <Form.Group className="col-md-4">
+              <Form.Label>Nombre de personnes</Form.Label>
+              <Form.Control
+                type="number"
+                name="partySize"
+                value={mainFormData.partySize}
+                onChange={handleMainFormChange}
+                min="1"
+                max="12"
+                required
+              />
+            </Form.Group>
+
+            <Form.Group className="col-md-4">
+              <Form.Label>Date et Heure</Form.Label>
+              <Form.Control
+                type="datetime-local"
+                name="reservationTime"
+                value={mainFormData.reservationTime}
+                onChange={handleMainFormChange}
+                required
+              />
+            </Form.Group>
+
+            <div className="col-12 text-center mt-4">
+              <button
+                type="submit"
+                className="btn btn-dark text-white fw-bold px-5 py-2"
+                style={{ backgroundColor: 'var(--accent-color)', borderColor: 'var(--accent-color)' }}
+              >
+                Réserver
+              </button>
+            </div>
+          </Form>
         </section>
       </div>
+
+      {/* Modal */}
+      <Modal show={showReservationModal} onHide={handleCloseModal} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>{reservationSuccess ? 'Réservation Confirmée' : 'Confirmez votre Réservation'}</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          {errorMessage && (
+            <div className="alert alert-danger mb-3">
+              {errorMessage}
+            </div>
+          )}
+          {reservationSuccess ? (
+            <div className="text-center py-4">
+              <i className="bi bi-check-circle-fill text-success" style={{ fontSize: '3rem' }}></i>
+              <h4 className="mt-3">Merci pour votre réservation!</h4>
+              <p>Un email de confirmation a été envoyé à {modalFormData.customerEmail}</p>
+              <p>
+                Nous vous attendons le {new Date(mainFormData.reservationTime).toLocaleDateString()} à {new Date(mainFormData.reservationTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} pour {mainFormData.partySize} personnes.
+              </p>
+            </div>
+          ) : (
+            <Form onSubmit={handleSubmitReservation}>
+              <Form.Group className="mb-3">
+                <Form.Label>Nom complet</Form.Label>
+                <Form.Control
+                  type="text"
+                  name="customerName"
+                  value={modalFormData.customerName}
+                  onChange={handleModalInputChange}
+                  required
+                />
+              </Form.Group>
+
+              <Form.Group className="mb-3">
+                <Form.Label>Email</Form.Label>
+                <Form.Control
+                  type="email"
+                  name="customerEmail"
+                  value={modalFormData.customerEmail}
+                  onChange={handleModalInputChange}
+                  required
+                />
+              </Form.Group>
+
+              <div className="d-grid mt-4">
+                <Button
+                  variant="dark"
+                  type="submit"
+                  disabled={reservationSubmitting}
+                  style={{ backgroundColor: 'var(--accent-color)', borderColor: 'var(--accent-color)' }}
+                >
+                  {reservationSubmitting ? 'Traitement en cours...' : 'Confirmer la réservation'}
+                </Button>
+              </div>
+            </Form>
+          )}
+        </Modal.Body>
+        {reservationSuccess && (
+          <Modal.Footer>
+            <Button variant="outline-dark" onClick={handleCloseModal}>Fermer</Button>
+          </Modal.Footer>
+        )}
+      </Modal>
     </div>
   );
 };
