@@ -22,11 +22,13 @@ function App() {
       <Router>
         <Navbar />
         <Routes>
-          <Route path="/accueil" element={<Home />} />
+          {/* This is the key change: path is now "/" */}
+          <Route path="/" element={<Home />} /> 
+          
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/menu" element={<Menu />} />
-          <Route path="/commande" element={<Order />} />
+          <Route path="/commande"={<Order />} />
           <Route path="/menuplats" element={<MenuPlats />} />
           <Route path="/menudessert" element={<MenuDessert />} />
           <Route path="/menuboisson" element={<MenuBoisson />} />
